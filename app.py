@@ -7,7 +7,7 @@ import matplotlib.dates as mdates
 # --- Load and preprocess data ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("../Datasets/Nifty/Stocks_2025.csv")
+    df = pd.read_csv("Stocks_2025.csv")
     
     # Drop unnamed index column if it exists
     if "Unnamed: 0" in df.columns:

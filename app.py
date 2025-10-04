@@ -7,8 +7,12 @@ import matplotlib.dates as mdates
 # --- Load and preprocess data ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Stocks_2025.csv")
-    
+    try:
+        df = pd.read_csv("Stocks_2025.csv")  # ✅ Ensure this path is correct
+    except FileNotFoundError:
+        st.error("❌ CSV file not found. Please ensure 'Datasets/Nifty/Stocks_2025.csv' exists.")
+        return pd.DataFrame()
+
     # Drop unnamed index column if it exists
     if "Unnamed: 0" in df.columns:
         df = df.drop("Unnamed: 0", axis=1)
@@ -28,10 +32,21 @@ def load_data():
 
 # --- Load data ---
 df = load_data()
+if df.empty:
+    st.stop()
 
 # --- Streamlit Page Setup ---
 st.set_page_config(page_title="📈 Nifty Stock Visualizer", layout="wide")
-st.title("📈 Nifty Stock Visualizer with SMA, Volume & Filters")
+
+# --- Beautiful multi-color headline ---
+st.markdown(
+    """
+    <h1 style='text-align: center; color: #1f77b4;'>
+        📊 <span style='color:#2ca02c;'>Nifty</span> <span style='color:#d62728;'>Stock</span> <span style='color:#9467bd;'>Visualizer</span> with <span style='color:#ff7f0e;'>SMA</span> & <span style='color:#8c564b;'>Volume</span>
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- Sidebar Filters ---
 st.sidebar.header("🔍 Filter Options")
@@ -57,7 +72,10 @@ max_date = df_stock["Date"].max()
 date_range = st.sidebar.date_input("Select Date Range", [min_date, max_date], min_value=min_date, max_value=max_date)
 
 # Apply date range filter
-df_stock = df_stock[(df_stock["Date"] >= pd.to_datetime(date_range[0])) & (df_stock["Date"] <= pd.to_datetime(date_range[1]))]
+df_stock = df_stock[
+    (df_stock["Date"] >= pd.to_datetime(date_range[0])) &
+    (df_stock["Date"] <= pd.to_datetime(date_range[1]))
+]
 
 # SMA Toggles
 show_sma_50 = st.sidebar.checkbox("Show SMA 50", value=True)
@@ -103,8 +121,23 @@ st.markdown("### 📥 Download Filtered Data")
 csv_data = df_stock.to_csv(index=False)
 st.download_button("Download CSV", data=csv_data, file_name=f"{selected_stock}_data.csv", mime='text/csv')
 
-# --- Raw Data Table ---
-with st.expander("📄 Show Raw Data Table"):
-    st.dataframe(df_stock.reset_index(drop=True), use_container_width=True)
+# --- Colored Data Table ---
+st.markdown("### 📄 Highlighted Data Table")
 
-   
+# Add 'Close Change' for coloring
+df_stock["Close Change"] = df_stock["Close"].diff()
+
+# Select only useful columns for the table
+styled_df = df_stock[["Date", "Stock", "Close", "Close Change", "SMA_50", "SMA_200", "Volume"]].copy()
+
+# Define style function
+def highlight_close(val):
+    color = "green" if val > 0 else "red" if val < 0 else "black"
+    return f"color: {color}"
+
+# Show styled table
+st.dataframe(
+    styled_df.style.applymap(highlight_close, subset=["Close Change"]),
+    use_container_width=True
+)
+
